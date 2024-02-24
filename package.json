@@ -1,0 +1,16 @@
+{
+  "name": "fquery",
+  "version": "1.0.0",
+  "description": "Recreational query engine inspired by https://howqueryengineswork.com/00-introduction.html.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "apache-arrow": "^15.0.0"
+  }
+}
