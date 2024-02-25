@@ -177,3 +177,10 @@ With the logical expressions in place, we can now implement the logical plans fo
 ## Build logical plans
 
 Combine Logical Plans programmatically.
+
+### Building logical plans using DataFrames
+
+> Implementing a DataFrame style API allows us to build logical query plans in a much more user-friendly way. A DataFrame is just an abstraction around a logical query plan and has methods to perform transformations and actions. It is similar to a fluent-style builder API.
+
+> Before we can apply a projection or selection, we need a way to create an initial DataFrame that represents an underlying data source. This is usually obtained through an execution context.
+

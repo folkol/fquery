@@ -98,8 +98,6 @@ class CsvDataSource extends DataSource {
 
 
 class LogicalPlan {
-    schema
-
     /**
      * @return {LogicalPlan[]}
      */
@@ -338,7 +336,8 @@ class Projection extends LogicalPlan {
     }
 
     toString() {
-        return `Projection: ${this.expr.map(x => x.toString()).join(", ")}`
+        let expressions = this.expr.map(x => x.toString()).join(", ");
+        return `Projection: ${expressions}`
     }
 }
 
@@ -413,3 +412,52 @@ let projectionList = [
 ];
 let plan = new Projection(selection, projectionList);
 format(plan)
+
+class DataFrame {
+    constructor(plan) {
+        this.plan = plan;
+    }
+
+    project(expr) {
+        return new DataFrame(new Projection(this.plan, expr));
+    }
+
+    filter(expr) {
+        return new DataFrame(new Selection(this.plan, expr))
+    }
+
+    aggregate(groupBy, aggregateExpr) {
+        return new DataFrame(new Aggregate(this.plan, groupBy, aggregateExpr));
+    }
+
+    get schema() {
+        return this.plan.schema();
+    }
+
+    logicalPlan() {
+        return this.plan;
+    }
+
+    toString() {
+        return `DataFrame(${this.plan})`;
+    }
+}
+
+class ExecutionContext {
+    csv(filename) {
+        return new DataFrame(new Scan(filename, new CsvDataSource(filename)));
+    }
+}
+
+let ctx = new ExecutionContext()
+let df = ctx.csv("employee.csv")
+    .filter(new EqExpr(new Column("state"), new LiteralString("CO")))
+    .project([
+        new Column("id"),
+        new Column("first_name"),
+        new Column("last_name"),
+        new Column("state"),
+        new Column("salary"),
+    ]);
+format(df.logicalPlan());
+console.log(df)
