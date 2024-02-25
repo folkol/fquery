@@ -115,6 +115,65 @@ https://arrow.apache.org/docs/js/
 
 > Apache Arrow is a columnar memory layout specification for encoding vectors and table-like containers of flat and nested data. The Arrow spec aligns columnar data in memory to minimize cache misses and take advantage of the latest SIMD (Single input multiple data) and GPU operations on modern processors.
 
-- https://github.com/domoritz/arrow-tools
-- 
+- https://github.com/domoritz/arrow-tools 
+## Data Sources
 
+> This also allows users to use our query engine with their custom data sources. Data sources are often files or databases but could also be in-memory objects.
+
+> In some cases, the schema might not be available, because some data sources do not have a fixed schema and are generally referred to as "schema-less". JSON documents are one example of a schema-less data source.
+
+> During query execution, we need the ability to fetch data from the data source and need to be able to specify which columns to load into memory for efficiency. There is no sense loading columns into memory if the query doesn't reference them.
+
+### Examples
+
+- CSV
+- JSON
+- Parquet (compressed, efficient columnar data, popular in Hadoop. Uses Dremel's "Striping and Assembly algorithms". Dremel: Interactive Analysis of Web-Scale Datasets.)
+	- Parquet files contain schema information and data is stored in batches (referred to as "row groups") where each batch consists of columns.
+	- The row groups can contain compressed data and can also contain optional metadata such as minimum and maximum values for each column.
+	- Query engines can be optimised to use this metadata to determine when row groups can be skipped during a scan.
+- Orc (Optimized Row Columnar format), similar to Parquet.
+	- Data is stored in columnar batches called 'stripes'
+
+TODO: Read the Dremel paper (https://storage.googleapis.com/gweb-research2023-media/pubtools/pdf/36632.pdf)
+
+## Logical plans and Expressoins
+
+Print them recursively with indents.
+
+## Serialization
+
+> It is good practice to add serialization early on as a precaution against accidentally referencing data structures that cannot be serialized (such as file handles or database connections). One approach would be to use the implementation languages' default mechanism for serializing data structures to/from a format such as JSON.
+
+E.g. Substrait -- Serialization format for describing compute on structued daga. Avoids having all projects having to implement its own serialization format for query plans.
+
+Substrait Primitives: Types | Expressions | Relations | Functions.
+
+## Logical Expressions
+
+> One of the fundamental building blocks of a query plan is the concept of an expression that can be evaluated against data at runtime.
+
+### Common expressions
+
+Literal Value: "hello", 12.34
+Column Reference: user_id, first_name, last_name
+Math Expression: salary * state_tax
+Comparison Expression: x > y
+Boolean Expression: expr AND expr
+Aggregate Expression: MIN(salary), MAX(salary), SUM(salary), AVG(salary), COUNT(*)
+Scalar Function: CONCAT(first_name, " ", last_name)
+Aliased Expression: "salary * 0.02 AS pay_increase"
+
+These can be combined to form deeply nested trees. Expression evaluation is text-book example of recursion.
+
+## Logical Plans
+
+With the logical expressions in place, we can now implement the logical plans for the various transformations that the query engine will support.
+
+### Scan
+
+> The Scan logical plan represents fetching data from a DataSource with an optional projection. Scan is the only logical plan in our query engine that does not have another logical plan as an input. It is a leaf node in the query tree.
+
+## Build logical plans
+
+Combine Logical Plans programmatically.
