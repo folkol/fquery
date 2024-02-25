@@ -1,4 +1,4 @@
-import {Bool, Field, Int32, Schema, Type} from "apache-arrow";
+import {Bool, Field, Int32, Int64, Schema, Type} from "apache-arrow";
 import {Utf8} from "apache-arrow/type";
 
 
@@ -19,17 +19,6 @@ class ColumnVector {
     }
 }
 
-/**
- * class LiteralValueVector {
- *  arrowType
- *  value
- *  size
- *     getType()
- *     getValue()
- *     size()
- * }
- */
-
 class LiteralValueVector extends ColumnVector {
     arrowType;
     value;
@@ -48,7 +37,7 @@ class LiteralValueVector extends ColumnVector {
 
     getValue(i) {
         if (i < 0 || i >= size) {
-            throw "out of range"
+            throw "range"
         } else {
             return this.value
         }
@@ -399,19 +388,19 @@ class Aggregate extends LogicalPlan {
     }
 }
 
-let csv = new CsvDataSource("employee.csv");
-let scan = new Scan("employee", csv);
-let filterExpr = new EqExpr(new Column("state"), new LiteralString("CO"));
-let selection = new Selection(scan, filterExpr);
-let projectionList = [
-    new Column("id"),
-    new Column("first_name"),
-    new Column("last_name"),
-    new Column("state"),
-    new Column("salary"),
-];
-let plan = new Projection(selection, projectionList);
-format(plan)
+// let csv = new CsvDataSource("employee.csv");
+// let scan = new Scan("employee", csv);
+// let filterExpr = new EqExpr(new Column("state"), new LiteralString("CO"));
+// let selection = new Selection(scan, filterExpr);
+// let projectionList = [
+//     new Column("id"),
+//     new Column("first_name"),
+//     new Column("last_name"),
+//     new Column("state"),
+//     new Column("salary"),
+// ];
+// let plan = new Projection(selection, projectionList);
+// format(plan)
 
 class DataFrame {
     constructor(plan) {
@@ -449,15 +438,294 @@ class ExecutionContext {
     }
 }
 
+let col = name => new Column(name);
+let eq = (x, y) => new EqExpr(x, y);
+let str = s => new LiteralString(s);
+
 let ctx = new ExecutionContext()
 let df = ctx.csv("employee.csv")
-    .filter(new EqExpr(new Column("state"), new LiteralString("CO")))
+    .filter(eq(col("state"), str("CO")))
     .project([
-        new Column("id"),
-        new Column("first_name"),
-        new Column("last_name"),
-        new Column("state"),
-        new Column("salary"),
+        col("id"),
+        col("first_name"),
+        col("last_name"),
+        col("state"),
+        col("salary"),
     ]);
 format(df.logicalPlan());
 console.log(df)
+
+class PhysicalPlan {
+    /**
+     * @return {Schema}
+     */
+    schema() {
+    }
+
+    /**
+     * @return {RecordBatch}
+     */
+    * execute() {
+    }
+
+    children() {
+    }
+}
+
+class Expression {
+    /**
+     * @return {ColumnVector}
+     * @param {RecordBatch} input
+     */
+    evaluate(input) {
+        throw 'PhysicalExpression::evaluate'
+    }
+}
+
+class ColumnExpression extends Expression {
+    /**
+     *
+     * @param {Number} i we don't want to do lookups all the time in the physical plan, use index directly
+     */
+    constructor(i) {
+        super();
+        this.i = i;
+    }
+
+    evaluate(input) {
+        return input.field[this.i];
+    }
+
+    toString() {
+        return `#${this.i}`;
+    }
+}
+
+// class LiteralValueVector extends Expression {
+//     arrowType;
+//     value;
+//     size;
+//
+//     constructor(arrowType, value, size) {
+//         super();
+//         this.arrowType = arrowType;
+//         this.value = value;
+//         this.size = size;
+//     }
+//
+//     getType() {
+//         return this.arrowType;
+//     }
+//
+//     getValue(i) {
+//         if (i < 0 || i >= this.size) {
+//             throw 'out of range'
+//         } else {
+//             return this.value;
+//         }
+//     }
+//
+//     get size() {
+//         return this.size;
+//     }
+// }
+
+class LiteralLongExpression extends Expression {
+    value;
+
+    constructor(value) {
+        super();
+        this.value = value;
+    }
+
+    evaluate(input) {
+        return new LiteralValueVector(Int64, this.value, input.rowCount());
+    }
+}
+
+class LiteralDoubleExperssion extends Expression {
+    value;
+
+    constructor(value) {
+        super();
+        this.value = value;
+    }
+
+    evaluate(input) {
+        return new LiteralValueVector(Type.Float64, this.value, input.rowCount());
+    }
+}
+
+class LiteralStringExpression extends Expression {
+    value;
+
+    constructor(value) {
+        super();
+        this.value = value;
+    }
+
+    evaluate(input) {
+        return new LiteralValueVector(Type.Utf8, this.value.toInt8Array(), input.rowCount());
+    }
+}
+
+class BinaryExpression extends Expression {
+    l;
+    r;
+
+    constructor(l, r) {
+        super();
+        this.l = l;
+        this.r = r;
+    }
+
+    evaluate(input) {
+        let ll = this.l.evaluate(input);
+        let rr = this.r.evaluate(input);
+        if (ll.size !== rr.size) {
+            throw 'BinaryExpression::evaluate, l and r size differ'
+        }
+        if (ll.getType() !== rr.getType()) {
+            throw `BinaryExpresssion::evalute, type mismatch ${ll.getType()} !== ${rr.getType()}`;
+        }
+        return this.evaluate2(ll, rr);
+    }
+
+    evaluate2(_l, _r) {
+        throw 'BinaryExpression::evaluate2'
+    }
+}
+
+class EqExpression extends BooleanBinaryExpr {
+    evaluate(l, r, arrowType) {
+        // if else
+        throw `Unsupported data type in 'eq': ${arrowType}`;
+    }
+}
+
+function fieldVectorFactory(type, size) {
+    throw 'wut?'
+}
+
+class ArrowVectorBuilder {
+    fieldVector;
+
+    constructor(fieldVector) {
+        this.fieldVector = fieldVector;
+    }
+
+    set(i, value) {
+        throw 'ArrowVectorBuilder::set'
+    }
+
+    build() {
+        throw 'ArrowVectorBuilder::build'
+    }
+}
+
+class MathExpression extends BinaryExpression {
+    l;
+    r;
+
+    constructor(l, r) {
+        super();
+        this.l = l;
+        this.r = r;
+    }
+
+    evaluate(l, r) {
+        let fieldVector = fieldVectorFactory(l.getType(), l.size());
+        let builder = new ArrowVectorBuilder(fieldVector);
+        l.forEach((e, i) => {
+            let value = this.evaluate3(l.getValue(i), r.getValue(i), l.getType())
+            builder.set(i, value);
+        })
+        return builder.build();
+    }
+
+    evaluate3(l, r, type) {
+        throw 'MathExpression::evaluate3';
+    }
+}
+
+class AddExpression extends MathExpression {
+    l;
+    r;
+    type;
+
+    constructor(l, r, type) {
+        super();
+        this.l = l;
+        this.r = r;
+        this.type = type;
+    }
+
+    evaluate3(_l, _r, type) {
+        // if else
+        throw `Unsupported data type in AddExpression: ${type}`;
+    }
+
+    toString() {
+        return `${this.l}+${this.r}`;
+    }
+}
+
+class AggregateExpression {
+    inputExpression() {
+        throw 'AggregateExpression::inputExpression';
+    }
+
+    /**
+     * @return {Accumulator}
+     */
+    createAccumulator() {
+        throw 'AggregateExpression::createAccumulator';
+    }
+}
+
+class Accumulator {
+    accumulate(value) {
+        throw 'Accumulator::accumulate';
+    }
+
+    finalValue() {
+        throw 'Accumulator::finalValue';
+    }
+}
+
+class MaxAccumulator extends Accumulator {
+    value
+
+    accumulate(value) {
+        if (value) {
+            if (this.value === undefined) {
+                this.value = value;
+            } else {
+                // if else
+                throw `MAX is not implemented for data type ${value.getType()}`;
+            }
+        }
+    }
+
+    finalValue() {
+        return this.value;
+    }
+}
+
+class MaxExpression extends AggregateExpression {
+    expr;
+
+    constructor(expr) {
+        super();
+        this.expr = expr;
+    }
+
+    inputExpression() {
+        return this.expr;
+    }
+
+    createAccumulator() {
+        return new MaxAccumulator();
+    }
+}
+

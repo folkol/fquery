@@ -184,3 +184,29 @@ Combine Logical Plans programmatically.
 
 > Before we can apply a projection or selection, we need a way to create an initial DataFrame that represents an underlying data source. This is usually obtained through an execution context.
 
+## Physical Plans and Expressions
+
+> The logical plans defined in chapter five specify what to do but not how to do it, and it is good practice to have separate logical and physical plans, although it is possible to combine them to reduce complexity.
+
+> One reason to keep logical and physical plans separate is that sometimes there can be multiple ways to execute a particular operation, meaning that there is a one-to-many relationship between logical plans and physical plans.
+
+Different physical plans from same Logical plans depending on stuff. Local machine? Distributed? GPU?
+
+Operations such as Aggregates and Joins can be implemented with various algorithms, depending on the data (Sorted? Large?).
+
+- Group Aggregate / Sort Aggregate
+- Hash Aggregate
+- Nested Loop Join
+- Sort-Merge Join
+- Hash Join
+
+Physical Phans return Iterators over Batches.
+
+> There could be multiple physical expression implementations for each logical expression. For example, for the logical expression AddExpr that adds two numbers, we could have one implementation that uses the CPU and one that uses the GPU. The query planner could choose which one to use based on the hardware capabilities of the server that the code is running on.
+
+> Physical expressions are evaluated against record batches and the results are columns.
+
+### Aggregate Expressions
+
+> The expressions we have looked at so far produce one output column from one or more input columns in each batch. Aggregate expressions are more complex because they aggregate values across multiple batches of data and then produce one final value, so we need to introduce the concept of accumulators, and the physical representation of each aggregate expression needs to know how to produce an appropriate accumulator for the query engine to pass input data to.
+
